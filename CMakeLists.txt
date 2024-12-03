@@ -1,9 +1,13 @@
 cmake_minimum_required(VERSION 3.0)
 project(O2)
 
-set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_STANDARD 17)
 
-option(BUILD_TESTS    "Build tests"    ON)
+if (CMAKE_BUILD_TYPE EQUAL "DEBUG")
+    option(BUILD_TESTS    "Build tests"    ON)
+else()
+    option(BUILD_TESTS    "Build tests"    OFF)
+endif()
 
 file (GLOB O2src
     "O2.cpp"
@@ -19,6 +23,7 @@ if (BUILD_TESTS)
         "tests/*.cpp"
     )
     add_executable(tests ${testSrc})
+    target_compile_definitions(tests PRIVATE PROCESSORTESTS_CASE)
     target_include_directories(tests PRIVATE ${O2_DIRECTORIES})
     target_link_libraries(tests ${O2_LIBRARIES})
 endif ()

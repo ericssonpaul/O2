@@ -1,7 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 
-#include <O2.hpp>
+#include "../O2.hpp"
 using namespace O2;
 
 TEST_CASE("startup", "[init]")
