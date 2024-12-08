@@ -1,8 +1,9 @@
 #ifndef O2_HPP
 #define O2_HPP
+
 #ifdef __cplusplus
 
-#include <cinttypes>
+#include <cstdint>
 #include <functional>
 
 namespace O2 {
@@ -37,6 +38,7 @@ enum ADDRESSING_MODE
 	IMM,
 	ZP,
 	ZPX,
+	ZPY,
 	ABS,
 	ABSX,
 	ABSY,
@@ -47,6 +49,9 @@ enum ADDRESSING_MODE
 const unsigned long CPU_SPEED_2A03		   = 1789773; /* ~1.79 MHz */
 const unsigned long CPU_SPEED_2A07		   = 1662607; /* ~1.67 MHz */
 const unsigned long CPU_DEFAULT_SPEED	   = CPU_SPEED_2A03;
+const uint16_t 		CPU_VECTOR_NMI		   = 0xFFFA;
+const uint16_t		CPU_VECTOR_RESET	   = 0xFFFC;
+const uint16_t		CPU_VECTOR_IRQ		   = 0xFFFE;
 const uint8_t		CPU_DEFAULT_READ_VALUE = 0xEA; /* NOP */
 
 class CPU
@@ -57,6 +62,7 @@ class CPU
 	bool	 P[8];
 
 	unsigned int instruction_cycles;
+	size_t tsc;
 
 	INSTRUCTION_STATE state;
 
@@ -71,7 +77,7 @@ class CPU
 	bool			intc;
 	bool			hlt;
 	unsigned char	cycle_count;
-	uint8_t			opcode, wv0, wv1;
+	uint8_t			opcode, wv0, wv1, page;
 	uint16_t		av;
 
   public:
@@ -124,12 +130,12 @@ class CPU
 		step();
 	}
 
-	inline void halt() { hlt = true; };
+	inline void halt() { hlt = true; tsc = 0; };
 	void		unhalt() { hlt = false; };
 	bool		ishalted() { return hlt; };
 
   private:
-	void variables_init();
+	void state_init();
 
 	void fetch();
 	void load();
@@ -143,6 +149,7 @@ class CPU
 	/* Addressing mode functions */
 	void zp();
 	void zpx();
+	void zpy();
 	void abs();
 	void absx();
 	void absy();
@@ -171,6 +178,7 @@ class CPU
 	void o_sbc();
 	void o_php();
 	void o_plp();
+	void o_txs();
 
 	void o_br(bool&, bool);
 	void o_fl(bool&, bool);
@@ -219,8 +227,18 @@ class CPU
 	inline uint8_t pop() { return rd(0x100 + (++S)); }
 	inline void	   flUpdate(uint8_t v)
 	{
-		P[NEGATIVE] = v >= 0x80;
+		P[NEGATIVE] = v & 0x80;
 		P[ZERO]		= v == 0;
+	}
+	inline bool    pageCross(uint8_t& v1, uint8_t& v2) {
+		page = v1;
+		v1  += v2;
+		if (v1 < page) {
+			page = 1;
+			return true;
+		}
+		page = 0;
+		return false;
 	}
 };
 }

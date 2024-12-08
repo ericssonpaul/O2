@@ -4,10 +4,9 @@
 #include <string>
 #include <iostream>
 #include <filesystem>
-#include <chrono>
-#include <thread>
+#include <string>
 #include <fstream>
-#include <unordered_map>
+#include <set>
 
 #include "catch.hpp"
 #include "json.hpp"
@@ -18,7 +17,7 @@ using namespace O2;
 namespace fs = std::filesystem;
 using json = nlohmann::json;
 
-const std::string path = "./ProcessorTests/nes6502/v1";
+const std::string path = "./ProcessorTests/nes6502_legal/v1";
 
 CPU cpu;
 uint8_t ram[65536];
@@ -144,12 +143,28 @@ bool ProcessorTestsSuiteEval()
     cpu.setRW(read, write);
 
     size_t count = 0;
-    for (const auto & entry : fs::directory_iterator(path)) {
+    std::set<fs::path> opcodes;
+    std::set<std::string> opcodes_done;
+    if (fs::exists(path + "/save_state")) {
         try {
-            auto t = std::ifstream(entry.path());
+            auto save = std::ifstream(path + "/save_state");
+            auto j = json::parse(save);
+            opcodes_done = j;
+            std::cout << "Resuming from " << path + "/save_state" << std::endl;
+        } catch (const std::exception& e) {
+            std::cerr << "Could not load save state: " << e.what() << std::endl;
+        }
+    }
+    for (const auto& entry : fs::directory_iterator(path)) {
+        if (entry.path().extension() == ".json" && opcodes_done.find(entry.path()) == opcodes_done.end())
+            opcodes.insert(entry.path());
+    }
+    for (const auto& entry : opcodes) {
+        try {
+            auto t = std::ifstream(entry);
 
             if (!t.is_open()) {
-                std::cerr << "\n" << "Failed to open file: " << entry.path() << std::endl;
+                std::cerr << "\n" << "Failed to open file: " << entry << std::endl;
 
                 continue;
             }
@@ -157,18 +172,23 @@ bool ProcessorTestsSuiteEval()
             auto j = json::parse(t);
 
             if (!j.is_array()) {
-                std::cerr << "\n" << entry.path() << " - invalid format" << std::endl;
+                std::cerr << "\n" << entry << " - invalid format" << std::endl;
             }
 
             for (const auto& testcase : j) {
                 std::cout << "\33[2K\r" << "n" << count << " - " << testcase["name"] << std::flush;
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
                 if (!Eval(testcase)) {
-                    std::cerr << "\n" << "Test failed:\n" << testcase << std::endl;
+                    std::cerr << "\n" << "Test failed:\n" << std::setw(4) << testcase << std::endl;
+
+                    json j(opcodes_done);
+                    auto save = std::ofstream(path + "/save_state");
+                    save << std::setw(4) << j << std::endl;
                     return false;
                 }
                 ++count;
             }
+
+            opcodes_done.insert(entry);
         }
         catch (const json::parse_error& e) {
             std::cerr << "\n" << e.what() << std::endl;
