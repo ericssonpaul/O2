@@ -119,6 +119,7 @@ void CPU::cycle()
 {
 	if (hlt)
 		return;
+	++tsc;
 	if (intc) {
 	interrupt:
 		interrupt();
@@ -169,7 +170,6 @@ void CPU::cycle()
 			}
 			return;
 	}
-	++tsc;
 }
 
 #define P_CHAR                                                                 \
@@ -768,16 +768,6 @@ void CPU::o_eor()
 }
 void CPU::o_inc()
 {
-	// if (cycle_count == 0) {
-	// 	av	= (wv1 << 8) | wv0;
-	// 	wv0 = rd(av);
-	// } else if (cycle_count == 1) {
-	// 	++wv0;
-	// 	flUpdate(wv0);
-	// } else {
-	// 	wr(av, wv0);
-	// 	state = FETCH;
-	// }
 	switch (cycle_count) {
 		case 0:
 			av	= (wv1 << 8) | wv0;
@@ -836,19 +826,6 @@ void CPU::o_lsr()
 		rd(av);
 		state = FETCH;
 	} else {
-		// if (cycle_count == 0) {
-		// 	av	= (wv1 << 8) | wv0;
-		// 	wv0 = rd(av);
-		// } else if (cycle_count == 1) {
-		// 	wr(av, wv0);
-		// 	P[CARRY] = wv0 & 1;
-		// 	wv0		 = wv0 >> 1;
-		// 	flUpdate(wv0);
-		// } else {
-		// 	wr(av, wv0);
-		// 	state = FETCH;
-		// }
-
 		switch (cycle_count) {
 			case 0:
 				av	= (wv1 << 8) | wv0;

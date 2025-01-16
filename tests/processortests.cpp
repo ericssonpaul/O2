@@ -1,5 +1,6 @@
 #include <cassert>
 #include <cstdint>
+#include <ctime>
 #include <exception>
 #include <string>
 #include <iostream>
@@ -7,8 +8,12 @@
 #include <string>
 #include <fstream>
 #include <set>
+#include <chrono>
 
+#ifdef PROCESSORTESTS_CASE
 #include "catch.hpp"
+#endif
+
 #include "json.hpp"
 
 #include "../O2.hpp"
@@ -23,6 +28,8 @@ CPU cpu;
 uint8_t ram[65536];
 bool lastRW;
 size_t cycle_count;
+size_t time_count;
+size_t time_count_opcode;
 uint16_t lastAdr;
 uint8_t lastVal;
 static uint8_t read(uint16_t adr)
@@ -38,6 +45,16 @@ static void write(uint16_t adr, uint8_t val)
     lastAdr = adr;
     lastVal = val;
     ram[adr] = val;
+}
+static inline void cycl()
+{
+    auto start = std::chrono::high_resolution_clock::now();
+    cpu.cycle();
+    auto stop = std::chrono::high_resolution_clock::now();
+
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);
+    time_count += duration.count();
+    time_count_opcode += duration.count();
 }
 
 #define COMPARE_REG(v, t) \
@@ -72,10 +89,9 @@ bool Eval(const nlohmann::basic_json<>& c)
     }
 
     // Exec
-    cycle_count = 0;
     const auto& cycles = c["cycles"];
     for (const auto& cycle : cycles) {
-        cpu.cycle();
+        cycl();
 
         std::string cpu_lastRWstr = cycle[2];
         bool cmp = (cpu_lastRWstr == "write");
@@ -141,8 +157,10 @@ bool ProcessorTestsSuiteEval()
     cpu.steps(8);
     memset(ram, 0, sizeof(uint8_t)*65536);
     cpu.setRW(read, write);
+    cycle_count = 0;
+    time_count = 0;
 
-    size_t count = 0;
+    size_t count = 1;
     std::set<fs::path> opcodes;
     std::set<std::string> opcodes_done;
     if (fs::exists(path + "/save_state")) {
@@ -175,6 +193,8 @@ bool ProcessorTestsSuiteEval()
                 std::cerr << "\n" << entry << " - invalid format" << std::endl;
             }
 
+            time_count_opcode = 0;
+            cpu.tsc = 0;
             for (const auto& testcase : j) {
                 std::cout << "\33[2K\r" << "n" << count << " - " << testcase["name"] << std::flush;
                 if (!Eval(testcase)) {
@@ -188,6 +208,9 @@ bool ProcessorTestsSuiteEval()
                 ++count;
             }
 
+            double hz = (double)cpu.tsc / ((double)time_count_opcode * 10e-9);
+            std::cout << "\nTime spent: " << time_count_opcode << " ns, cycles: " << cpu.tsc << ", Average speed: " << hz << " Hz\n" << std::flush;
+
             opcodes_done.insert(entry);
         }
         catch (const json::parse_error& e) {
@@ -199,6 +222,9 @@ bool ProcessorTestsSuiteEval()
             continue;
         }
     }
+    std::cout << "\nSuccess!\n";
+    double hz = (double)cycle_count / ((double)time_count * 10e-9);
+    std::cout << "\nTotal time spent: " << time_count << " ns, cycles: " << cycle_count << ", Average speed: " << hz << " Hz\n" << std::flush;
     return true;
 }
 
