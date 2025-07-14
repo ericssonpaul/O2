@@ -464,7 +464,10 @@ void CPU::ctrl_parse()
 				case 2:
 				case 3: addm = IMPLIED; break;
 				case 1: addm = IMPLIED; break; // Should work
-				case 4 ... 7: addm = IMM; break;
+				case 4:
+				case 5:
+				case 6:
+				case 7: addm = IMM; break;
 			}
 			return;
 		case 0x04: addm = ZP; return;
@@ -499,8 +502,14 @@ void CPU::rmwc_parse()
 	switch (opcode % 0x20) {
 		case 0x02:
 			switch (opcode / 0x20) {
-				case 0 ... 3: addm = IMPLIED; break;
-				case 4 ... 7: addm = IMM; break;
+				case 0:
+				case 1:
+				case 2:
+				case 3: addm = IMPLIED; break;
+				case 4:
+				case 5:
+				case 6:
+				case 7: addm = IMM; break;
 			}
 			return;
 		case 0x06: addm = ZP; return;
@@ -516,8 +525,12 @@ void CPU::rmwc_parse()
 			return;
 		case 0x1E:
 			switch (opcode / 0x20) {
-				case 0 ... 3:
-				case 6 ... 7: addm = ABSX; break;
+				case 0:
+				case 1:
+				case 2:
+				case 3:
+				case 6:
+				case 7: addm = ABSX; break;
 				case 4:
 				case 5: addm = ABSY; break;
 			}
@@ -938,7 +951,9 @@ void CPU::o_ror()
 void CPU::o_rti()
 {
 	switch (cycle_count) {
-		case 0 ... 2:
+		case 0:
+		case 1:
+		case 2:
 			o_plp();
 			state = EXECUTE;
 			break;
