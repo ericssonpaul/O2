@@ -1328,7 +1328,7 @@ void CPU::o_dcp()
 }
 void CPU::o_axs()
 {
-	X = A & X - rd(av);
+	X = (A & X) - rd(av);
 	flUpdate(X);
 	state = FETCH;
 }
